@@ -7,7 +7,6 @@
 #include <string>
 #include <fstream>
 #include "kalman_filter.h"
-#include "tools.h"
 
 class FusionEKF {
 public:
@@ -24,7 +23,7 @@ public:
   /**
   * Run the whole flow of the Kalman Filter from here.
   */
-  void ProcessMeasurement(const MeasurementPackage &measurement_pack);
+  bool ProcessMeasurement(const MeasurementPackage &measurement_pack);
 
   /**
   * Kalman Filter update and prediction math lives in here.
@@ -36,14 +35,26 @@ private:
   bool is_initialized_;
 
   // previous timestamp
-  long previous_timestamp_;
+  unsigned long long previous_timestamp_;
 
-  // tool object used to compute Jacobian and RMSE
-  Tools tools;
+  // Laser measurement noise covariance
   Eigen::MatrixXd R_laser_;
+
+  // Radar measurement noise covariance
   Eigen::MatrixXd R_radar_;
+
+  // Measurament function laser
   Eigen::MatrixXd H_laser_;
+
+  // Measurement jacobian radar
   Eigen::MatrixXd Hj_;
+
+  // State covariance
+  Eigen::MatrixXd P_;
+
+  // noise components
+  double noise_ax_;
+  double noise_ay_;
 };
 
 #endif /* FusionEKF_H_ */

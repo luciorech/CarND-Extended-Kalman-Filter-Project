@@ -7,6 +7,7 @@
 #include "FusionEKF.h"
 #include "ground_truth_package.h"
 #include "measurement_package.h"
+#include "tools.h"
 
 using namespace std;
 using Eigen::MatrixXd;
@@ -136,7 +137,7 @@ int main(int argc, char* argv[]) {
   for (size_t k = 0; k < N; ++k) {
     // start filtering from the second frame (the speed is unknown in the first
     // frame)
-    fusionEKF.ProcessMeasurement(measurement_pack_list[k]);
+    if (!fusionEKF.ProcessMeasurement(measurement_pack_list[k])) continue;
 
     // output the estimation
     out_file_ << fusionEKF.ekf_.x_(0) << "\t";
@@ -168,8 +169,7 @@ int main(int argc, char* argv[]) {
   }
 
   // compute the accuracy (RMSE)
-  Tools tools;
-  cout << "Accuracy - RMSE:" << endl << tools.CalculateRMSE(estimations, ground_truth) << endl;
+  cout << "Accuracy - RMSE:" << endl << Tools::CalculateRMSE(estimations, ground_truth) << endl;
 
   // close files
   if (out_file_.is_open()) {
