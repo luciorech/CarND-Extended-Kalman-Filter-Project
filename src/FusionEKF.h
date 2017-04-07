@@ -25,14 +25,13 @@ public:
   */
   bool ProcessMeasurement(const MeasurementPackage &measurement_pack);
 
-  /**
-  * Kalman Filter update and prediction math lives in here.
-  */
-  KalmanFilter ekf_;
-
+  inline KalmanFilter* ekf() const { return ekf_; }
+  
 private:
-  // check whether the tracking toolbox was initiallized or not (first measurement)
-  bool is_initialized_;
+  /*
+   * Kalman Filter update and prediction math lives in here.
+   */
+  KalmanFilter *ekf_;
 
   // previous timestamp
   unsigned long long previous_timestamp_;

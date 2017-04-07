@@ -11,10 +11,10 @@ using std::vector;
 
 /*
  * Constructor.
- * Uses noise_ax = 9 and noise_ay = 9 for your Q matrix.
+ * Uses noise_ax = 9 and noise_ay = 9 for Q matrix.
  */
 FusionEKF::FusionEKF() :
-  is_initialized_(false),
+  ekf_(nullptr),
   previous_timestamp_(0),
   R_laser_(MatrixXd(2, 2)),
   R_radar_(MatrixXd(3, 3)),
@@ -37,8 +37,9 @@ FusionEKF::FusionEKF() :
         0, 0, 0, 1000;
 }
 
-
-FusionEKF::~FusionEKF() {}
+FusionEKF::~FusionEKF() {
+  if (ekf_) delete ekf_;
+}
 
 bool FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
 
@@ -47,7 +48,8 @@ bool FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   // A measurement cannot be at origin (no matter if lidar or radar)
   // If so, we simply discard it
   if (fabs(measurement_pack.raw_measurements_[0]) < epsilon &&
-      fabs(measurement_pack.raw_measurements_[1]) < epsilon)
+      (fabs(measurement_pack.raw_measurements_[1]) < epsilon ||
+       measurement_pack.sensor_type_ == MeasurementPackage::RADAR))
   {
     std::cout << "Skipping invalid measurement" << std::endl;
     return false;
@@ -56,7 +58,7 @@ bool FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   /*****************************************************************************
    *  Initialization
    ****************************************************************************/
-  if (!is_initialized_) {
+  if (!ekf_) {
     cout << "EKF: " << endl;
     VectorXd x(4);
     MatrixXd F(4, 4);
@@ -76,9 +78,7 @@ bool FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
       x << measurement_pack.raw_measurements_[0], measurement_pack.raw_measurements_[1], 0, 0;
     }
     previous_timestamp_ = measurement_pack.timestamp_;
-    ekf_.Init(x, P_, F, H_laser_, R_laser_, R_radar_, Q);
-
-    is_initialized_ = true;
+    ekf_ = new KalmanFilter(x, P_, F, H_laser_, R_laser_, R_radar_, Q);
     return true;
   }
 
@@ -90,8 +90,8 @@ bool FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
   if (measurement_pack.timestamp_ > previous_timestamp_) {
     double dt = (measurement_pack.timestamp_ - previous_timestamp_) / 1000000.0;
     previous_timestamp_ = measurement_pack.timestamp_;
-    ekf_.F_(0, 2) = dt;
-    ekf_.F_(1, 3) = dt;
+    ekf_->F()(0, 2) = dt;
+    ekf_->F()(1, 3) = dt;
      
     double dt_2 = dt * dt;
     double dt_3 = dt_2 * dt;
@@ -101,24 +101,24 @@ bool FusionEKF::ProcessMeasurement(const MeasurementPackage &measurement_pack) {
     double dt_3_2_noise_ax = dt_3_2 * noise_ax_;
     double dt_3_2_noise_ay = dt_3_2 * noise_ay_;
 
-    ekf_.Q_ << (dt_4_4 * noise_ax_), 0, dt_3_2_noise_ax, 0,
-               0, (dt_4_4 * noise_ay_), 0, dt_3_2_noise_ay,
-               dt_3_2_noise_ax, 0, (dt_2 * noise_ax_), 0,
-               0, dt_3_2_noise_ay, 0, (dt_2 * noise_ay_);
-    ekf_.Predict();
+    ekf_->Q() << (dt_4_4 * noise_ax_), 0, dt_3_2_noise_ax, 0,
+                 0, (dt_4_4 * noise_ay_), 0, dt_3_2_noise_ay,
+                 dt_3_2_noise_ax, 0, (dt_2 * noise_ax_), 0,
+                 0, dt_3_2_noise_ay, 0, (dt_2 * noise_ay_);
+    ekf_->Predict();
   }
 
   /*****************************************************************************
    *  Update
    ****************************************************************************/
   if (measurement_pack.sensor_type_ == MeasurementPackage::RADAR) {
-    ekf_.UpdateEKF(measurement_pack.raw_measurements_);
+    ekf_->UpdateEKF(measurement_pack.raw_measurements_);
   } else {
-    ekf_.Update(measurement_pack.raw_measurements_);
+    ekf_->Update(measurement_pack.raw_measurements_);
   }
 
   // print the output
-  cout << "x_ = " << ekf_.x_ << endl;
-  cout << "P_ = " << ekf_.P_ << endl;
+  cout << "x_ = " << ekf_->x() << endl;
+  cout << "P_ = " << ekf_->P() << endl;
   return true;
 }

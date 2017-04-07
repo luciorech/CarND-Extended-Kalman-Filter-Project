@@ -7,21 +7,15 @@
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
 
-KalmanFilter::KalmanFilter() {}
+KalmanFilter::KalmanFilter(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
+                           MatrixXd &H_in, MatrixXd &R_kf_in, MatrixXd &R_ekf_in,
+                           MatrixXd &Q_in) :
+  x_(x_in), P_(P_in), F_(F_in), H_(H_in), R_kf_(R_kf_in),
+  R_ekf_(R_ekf_in), Q_(Q_in)
+{
+}
 
 KalmanFilter::~KalmanFilter() {}
-
-void KalmanFilter::Init(VectorXd &x_in, MatrixXd &P_in, MatrixXd &F_in,
-                        MatrixXd &H_in, MatrixXd &R_kf_in, MatrixXd &R_ekf_in,
-                        MatrixXd &Q_in) {
-  x_ = x_in;
-  P_ = P_in;
-  F_ = F_in;
-  H_ = H_in;
-  R_kf_ = R_kf_in;
-  R_ekf_ = R_ekf_in;
-  Q_ = Q_in;
-}
 
 void KalmanFilter::Predict() {
   x_ = F_ * x_;
@@ -54,18 +48,21 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   
   double rho_hx = sqrt((px * px) + (py * py));
   double phi_hx = atan2(py, px);
-  while (phi_hx < -M_PI) phi_hx += 2 * M_PI;
-  while (phi_hx > M_PI) phi_hx -= 2 * M_PI;
 
-  // std::cout << "rho_hx = " << rho_hx << "\n";
-  // std::cout << "phi_hx = " << phi_hx << "\n";
-  // std::cout << "rho = " << z[0] << "\n";
-  // std::cout << "phi = " << z[1] << "\n";
+  std::cout << "px = " << px << "\n";
+  std::cout << "py = " << py << "\n";
+  std::cout << "rho_hx = " << rho_hx << "\n";
+  std::cout << "phi_hx = " << phi_hx << "\n";
+  std::cout << "rho = " << z[0] << "\n";
+  std::cout << "phi = " << z[1] << "\n";
 
   VectorXd hx(3);
   hx << rho_hx, phi_hx, ((px * vx) + (py * vy)) / rho_hx;
   VectorXd y = z - hx;
+  while (y[1] < -M_PI) y[1] += 2 * M_PI;
+  while (y[1] > M_PI) y[1] -= 2 * M_PI;
 
+  // Todo: if cannot calculate jacobian, skip update
   MatrixXd Hj = Tools::CalculateJacobian(x_);
   MatrixXd Ht = Hj.transpose();
   MatrixXd S = Hj * P_ * Ht + R_ekf_;
