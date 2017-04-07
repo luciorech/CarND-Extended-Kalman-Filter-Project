@@ -40,6 +40,9 @@ void KalmanFilter::Update(const VectorXd &z) {
 }
 
 void KalmanFilter::UpdateEKF(const VectorXd &z) {
+  // If cannot calculate jacobian, skip update
+  MatrixXd Hj = Tools::CalculateJacobian(x_);
+  if (Hj.rows() == 0) return;
 
   double px = x_[0];
   double py = x_[1];
@@ -62,8 +65,6 @@ void KalmanFilter::UpdateEKF(const VectorXd &z) {
   while (y[1] < -M_PI) y[1] += 2 * M_PI;
   while (y[1] > M_PI) y[1] -= 2 * M_PI;
 
-  // Todo: if cannot calculate jacobian, skip update
-  MatrixXd Hj = Tools::CalculateJacobian(x_);
   MatrixXd Ht = Hj.transpose();
   MatrixXd S = Hj * P_ * Ht + R_ekf_;
   MatrixXd Si = S.inverse();
